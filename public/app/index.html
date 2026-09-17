@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Almaz Kabinet</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(160deg, #1a0b3d 0%, #3a1c71 30%, #7b2ff7 65%, #d76d77 100%);
+    background-attachment: fixed;
+    color: #fff;
+  }
+  body {
+    padding: 16px 16px calc(90px + env(safe-area-inset-bottom, 0px));
+    min-height: 100vh;
+  }
+
+  .hero { text-align: center; padding: 14px 10px 4px; }
+  .hero .diamond {
+    font-size: 40px;
+    filter: drop-shadow(0 4px 16px rgba(255,255,255,.45));
+    animation: float 3.2s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .hero h1 { margin: 6px 0 2px; font-size: 20px; font-weight: 700; }
+  .hero p { margin: 0; opacity: .75; font-size: 13px; }
+
+  .card {
+    border-radius: 20px;
+    padding: 18px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    margin-bottom: 14px;
+  }
+
+  .balance-card {
+    background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.06));
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .balance-card::after {
+    content: "";
+    position: absolute;
+    inset: -40% -10% auto -10%;
+    height: 140%;
+    background: radial-gradient(closest-side, rgba(255,255,255,.35), transparent 70%);
+    transform: rotate(8deg);
+    pointer-events: none;
+  }
+  .balance-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .8; position: relative; }
+  .balance-value {
+    font-size: 40px; font-weight: 800; margin: 6px 0 2px; position: relative;
+    background: linear-gradient(90deg, #ffe259, #ffa751);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .balance-currency { font-size: 14px; opacity: .8; position: relative; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .stat { border-radius: 16px; padding: 14px; text-align: center; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); }
+  .stat .icon { font-size: 22px; }
+  .stat .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .stat .label { font-size: 11px; opacity: .7; margin-top: 2px; }
+
+  .section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin: 4px 2px 10px; }
+
+  .leaderboard { display: flex; flex-direction: column; gap: 8px; }
+  .lb-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,0.07); }
+  .lb-row.you { background: linear-gradient(90deg, rgba(255,167,81,.35), rgba(255,226,89,.18)); border: 1px solid rgba(255,226,89,.5); }
+  .lb-rank { width: 26px; text-align: center; font-size: 15px; }
+  .lb-name { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-count { font-size: 13px; font-weight: 700; opacity: .9; }
+
+  .state { text-align: center; padding: 40px 16px; opacity: .85; }
+  .spinner {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.25); border-top-color: #fff;
+    margin: 0 auto 14px; animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* --- Taklif tab --- */
+  .reflink-box {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.22); border-radius: 14px; padding: 12px 14px;
+    font-size: 12px; word-break: break-all; margin-bottom: 12px;
+  }
+  .btn {
+    display: block; width: 100%; text-align: center; border: none; cursor: pointer;
+    padding: 14px; border-radius: 16px; font-size: 15px; font-weight: 700;
+    background: linear-gradient(90deg, #ffe259, #ffa751); color: #3a1c00;
+    box-shadow: 0 6px 18px rgba(255,167,81,.35);
+  }
+  .btn.secondary {
+    background: rgba(255,255,255,0.14); color: #fff;
+    box-shadow: none; border: 1px solid rgba(255,255,255,0.25);
+    margin-top: 10px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn[disabled] { opacity: .5; pointer-events: none; }
+
+  .hint { font-size: 12px; opacity: .75; line-height: 1.5; margin: 0 2px 14px; }
+
+  /* --- Yechish tab --- */
+  .field-label { font-size: 12px; opacity: .8; margin: 14px 2px 6px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 9px 14px; border-radius: 999px; font-size: 13px; cursor: pointer;
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.2);
+  }
+  .chip.selected { background: linear-gradient(90deg, #ffe259, #ffa751); color: #3a1c00; font-weight: 700; border-color: transparent; }
+  input.field {
+    width: 100%; padding: 13px 14px; border-radius: 14px; font-size: 15px;
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+  }
+  input.field::placeholder { color: rgba(255,255,255,0.5); }
+  .form-msg { font-size: 13px; margin-top: 12px; text-align: center; min-height: 18px; }
+  .form-msg.err { color: #ffb4b4; }
+  .form-msg.ok { color: #b8ffb0; }
+
+  /* --- Tab bar --- */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: flex; justify-content: space-around;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgba(20, 8, 45, 0.85);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  .tab-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: none; border: none; color: rgba(255,255,255,.55);
+    font-size: 11px; padding: 4px 14px; cursor: pointer;
+  }
+  .tab-btn .ic { font-size: 20px; }
+  .tab-btn.active { color: #ffe259; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+  <div id="loading" class="state">
+    <div class="spinner"></div>
+    <div>Yuklanmoqda…</div>
+  </div>
+
+  <div id="error" class="state" hidden>
+    <div style="font-size:34px;">⚠️</div>
+    <div id="errorText" style="margin-top:10px; white-space:pre-wrap; font-size:12px; text-align:left; max-width:340px; margin-left:auto; margin-right:auto; opacity:.85;"></div>
+    <button class="btn secondary" style="max-width:340px; margin:18px auto 0;" onclick="window.location.reload()">🔄 Qayta urinish</button>
+  </div>
+
+  <div id="content" hidden>
+    <div class="hero">
+      <div class="diamond">💎</div>
+      <h1 id="greeting">Salom!</h1>
+      <p>Sizning shaxsiy kabinetingiz</p>
+    </div>
+
+    <!-- KABINET -->
+    <section id="page-home" class="page active">
+      <div class="card balance-card">
+        <div class="balance-label">Joriy balans</div>
+        <div class="balance-value"><span id="balance">0</span></div>
+        <div class="balance-currency" id="currencyLabel">almaz</div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="icon">👥</div>
+          <div class="value" id="refcount">0</div>
+          <div class="label">Takliflar</div>
+        </div>
+        <div class="stat">
+          <div class="icon">💳</div>
+          <div class="value" id="withdrawn">0</div>
+          <div class="label">Yechib olingan</div>
+        </div>
+      </div>
+
+      <div class="section-title">🏆 TOP-10 taklif qiluvchilar</div>
+      <div class="card">
+        <div class="leaderboard" id="leaderboard"></div>
+        <div id="emptyTop" style="text-align:center; opacity:.7; padding:8px;" hidden>
+          Hali hech kim referal qo'shmagan.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAKLIF -->
+    <section id="page-ref" class="page">
+      <div class="section-title">📎 Taklif havolangiz</div>
+      <div class="card">
+        <p class="hint">Do'stlaringizni shu havola orqali taklif qiling. Har bir to'liq ro'yxatdan o'tgan taklifingiz uchun <b id="refpay">0</b> <span id="refcurrency">almaz</span> olasiz.</p>
+        <div class="reflink-box"><span id="reflink">—</span></div>
+        <button class="btn" id="shareBtn">↗️ Do'stlarga ulashish</button>
+        <button class="btn secondary" id="copyBtn">📋 Havolani nusxalash</button>
+      </div>
+    </section>
+
+    <!-- YECHISH -->
+    <section id="page-withdraw" class="page">
+      <div class="section-title">💳 Almaz yechish</div>
+      <div class="card">
+        <div class="field-label">To'lov usuli</div>
+        <div class="chip-row" id="methodChips"></div>
+
+        <div class="field-label">Free Fire ID raqamingiz</div>
+        <input class="field" id="gameIdInput" inputmode="numeric" placeholder="Masalan: 123456789">
+
+        <div class="field-label">Miqdor (<span id="minAmountLabel">0</span> dan kam bo'lmasin)</div>
+        <input class="field" id="amountInput" inputmode="numeric" placeholder="Miqdorni kiriting">
+
+        <button class="btn" id="withdrawBtn" style="margin-top:16px;">✅ So'rov yuborish</button>
+        <div class="form-msg" id="withdrawMsg"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tabbar" id="tabbar" hidden>
+    <button class="tab-btn active" data-page="home"><span class="ic">🏠</span>Kabinet</button>
+    <button class="tab-btn" data-page="ref"><span class="ic">📎</span>Taklif</button>
+    <button class="tab-btn" data-page="withdraw"><span class="ic">💳</span>Yechish</button>
+  </div>
+
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  var medals = ['🥇', '🥈', '🥉'];
+  var profile = null;
+  var selectedMethod = null;
+
+  function show(id) {
+    ['loading', 'error', 'content'].forEach(function (x) {
+      document.getElementById(x).hidden = (x !== id);
+    });
+    document.getElementById('tabbar').hidden = (id !== 'content');
+  }
+
+  function post(action, extra) {
+    var params = Object.assign({ initData: tg ? tg.initData : '', action: action }, extra || {});
+    var body = Object.keys(params).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+
+    return fetch('api.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+    }).then(function (res) {
+      return res.json().then(function (json) {
+        if (!res.ok) throw new Error(json.error || 'Xatolik yuz berdi.');
+        return json;
+      });
+    });
+  }
+
+  function renderLeaderboard(rows) {
+    var wrap = document.getElementById('leaderboard');
+    var empty = document.getElementById('emptyTop');
+    wrap.innerHTML = '';
+    if (!rows.length) { empty.hidden = false; return; }
+    empty.hidden = true;
+    rows.forEach(function (row, i) {
+      var el = document.createElement('div');
+      el.className = 'lb-row' + (row.is_you ? ' you' : '');
+      el.innerHTML =
+        '<div class="lb-rank">' + (medals[i] || (i + 1)) + '</div>' +
+        '<div class="lb-name"></div>' +
+        '<div class="lb-count">' + row.count + ' ta</div>';
+      el.querySelector('.lb-name').textContent = row.name;
+      wrap.appendChild(el);
+    });
+  }
+
+  function renderMethods(methods) {
+    var wrap = document.getElementById('methodChips');
+    wrap.innerHTML = '';
+    if (!methods.length) {
+      wrap.innerHTML = '<span style="opacity:.7;font-size:13px;">To\'lov usullari topilmadi.</span>';
+      return;
+    }
+    methods.forEach(function (m, i) {
+      var chip = document.createElement('div');
+      chip.className = 'chip' + (i === 0 ? ' selected' : '');
+      chip.textContent = m;
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('selected'); });
+        chip.classList.add('selected');
+        selectedMethod = m;
+      });
+      wrap.appendChild(chip);
+    });
+    selectedMethod = methods[0];
+  }
+
+  function render(data) {
+    profile = data;
+    document.getElementById('greeting').textContent = 'Salom, ' + data.first_name + '!';
+    document.getElementById('balance').textContent = data.balance.toLocaleString('uz-UZ');
+    document.getElementById('currencyLabel').textContent = data.currency;
+    document.getElementById('refcount').textContent = data.referral_count;
+    document.getElementById('withdrawn').textContent = data.withdrawn.toLocaleString('uz-UZ');
+    renderLeaderboard(data.top || []);
+
+    document.getElementById('reflink').textContent = data.reflink;
+    document.getElementById('refpay').textContent = data.refpay;
+    document.getElementById('refcurrency').textContent = data.currency;
+
+    document.getElementById('minAmountLabel').textContent = data.min_withdraw + ' ' + data.currency;
+    renderMethods(data.payment_methods || []);
+
+    show('content');
+  }
+
+  function fail(message) {
+    document.getElementById('errorText').textContent = message;
+    show('error');
+  }
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('page-' + btn.dataset.page).classList.add('active');
+    });
+  });
+
+  // Taklif tab actions
+  document.getElementById('shareBtn').addEventListener('click', function () {
+    if (!profile) return;
+    var url = 'https://t.me/share/url?url=' + encodeURIComponent(profile.reflink);
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(url);
+    else window.open(url, '_blank');
+  });
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    if (!profile) return;
+    navigator.clipboard && navigator.clipboard.writeText(profile.reflink);
+    var btn = document.getElementById('copyBtn');
+    var original = btn.textContent;
+    btn.textContent = '✅ Nusxalandi';
+    setTimeout(function () { btn.textContent = original; }, 1500);
+  });
+
+  // Withdraw tab action
+  document.getElementById('withdrawBtn').addEventListener('click', function () {
+    var msg = document.getElementById('withdrawMsg');
+    var gameId = document.getElementById('gameIdInput').value.trim();
+    var amount = parseInt(document.getElementById('amountInput').value, 10);
+    var btn = document.getElementById('withdrawBtn');
+
+    msg.className = 'form-msg';
+    msg.textContent = '';
+
+    if (!selectedMethod) { msg.className = 'form-msg err'; msg.textContent = "To'lov usulini tanlang."; return; }
+    if (!gameId || !/^\d+$/.test(gameId)) { msg.className = 'form-msg err'; msg.textContent = 'Free Fire ID raqamini to\'g\'ri kiriting.'; return; }
+    if (!amount || amount <= 0) { msg.className = 'form-msg err'; msg.textContent = "Miqdorni to'g'ri kiriting."; return; }
+
+    btn.disabled = true;
+    post('withdraw', { payment_method: selectedMethod, game_id: gameId, amount: amount })
+      .then(function (res) {
+        msg.className = 'form-msg ok';
+        msg.textContent = "✅ So'rovingiz qabul qilindi! Admin tez orada ko'rib chiqadi.";
+        document.getElementById('gameIdInput').value = '';
+        document.getElementById('amountInput').value = '';
+        document.getElementById('balance').textContent = res.balance.toLocaleString('uz-UZ');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      })
+      .catch(function (e) {
+        msg.className = 'form-msg err';
+        msg.textContent = e.message || 'Xatolik yuz berdi.';
+      })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  function debugInfo() {
+    var lines = [];
+    lines.push('window.Telegram: ' + (window.Telegram ? 'bor' : "YO'Q"));
+    lines.push('WebApp: ' + (tg ? 'bor' : "YO'Q"));
+    if (tg) {
+      lines.push('version: ' + tg.version);
+      lines.push('platform: ' + tg.platform);
+      lines.push('initData uzunligi: ' + (tg.initData ? tg.initData.length : 0));
+      lines.push('initDataUnsafe: ' + JSON.stringify(tg.initDataUnsafe || {}));
+    }
+    lines.push('location: ' + window.location.href);
+    return lines.join('\n');
+  }
+
+  function startWithRetry(attemptsLeft) {
+    var initData = tg ? tg.initData : '';
+    if (initData) {
+      post('profile').then(render).catch(function (e) {
+        fail(e.message || "Ma'lumotlarni yuklab bo'lmadi.");
+      });
+      return;
+    }
+    if (attemptsLeft > 0) {
+      setTimeout(function () { startWithRetry(attemptsLeft - 1); }, 200);
+      return;
+    }
+    fail('Bu sahifa faqat Telegram bot ichidan ochilishi kerak.\n\n--- diagnostika ---\n' + debugInfo());
+  }
+
+  startWithRetry(15);
+})();
+</script>
+</body>
+</html>
