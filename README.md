@@ -8,7 +8,7 @@ Bu — `Downloads\bot.php` faylining PHP 8 + SQLite (PDO) asosidagi, OOP tuzilis
 
 ```
 almaz-bot/
-  webhook.php              Telegram shu yerga POST qiladi
+  public/index.php         Telegram shu yerga POST qiladi (veb-ildiz = public/)
   migrate_from_legacy.php  eski fayllardan bazaga bir martalik import
   bootstrap.php            konfiguratsiya + bog'lovchi (DI) qurilmasi
   schema.sql                baza sxemasi
@@ -46,17 +46,17 @@ Bu skript eski `pul/`, `odam/`, `ban/`, `number/`, `admin/*.txt`, `admin/kanal.t
 
 ## Tekshirish (bu muhitda PHP bo'lmagani uchun o'zingiz bajarishingiz kerak)
 
-1. Sintaksis tekshiruvi: `php -l webhook.php` va har bir `src/**/*.php` fayl uchun (yoki `find src -name "*.php" -exec php -l {} \;`).
+1. Sintaksis tekshiruvi: `php -l public/index.php` va har bir `src/**/*.php` fayl uchun (yoki `find src -name "*.php" -exec php -l {} \;`).
 2. **Yangi, alohida test bot** yarating (@BotFather → `/newbot`), production tokenidan foydalanmang.
-3. Lokal serverni ko'taring: `php -S localhost:8000`.
+3. Lokal serverni ko'taring: `php -S localhost:8000 -t public`.
 4. `ngrok http 8000` (yoki shunga o'xshash) orqali tashqi manzil oling va test botingizga shu manzilni webhook qilib bering:
    ```bash
-   curl "https://api.telegram.org/bot<TEST_TOKEN>/setWebhook?url=https://<ngrok-manzil>/webhook.php&secret_token=<.env dagi WEBHOOK_SECRET>"
+   curl "https://api.telegram.org/bot<TEST_TOKEN>/setWebhook?url=https://<ngrok-manzil>/&secret_token=<.env dagi WEBHOOK_SECRET>"
    ```
 5. Test botida qo'lda tekshiring: `/start`, referral havolasi (`/start <biror-id>`), telefon yuborish, majburiy obuna gate, "Almaz ishlash", kabinet, pul yechish so'rovi (usul tanlash → FF ID → miqdor → tasdiqlash → admin ko'rib chiqishi), va admin panelning barcha bo'limlari (sozlamalar, kanallar, to'lov usullari, xabarnoma, foydalanuvchi boshqarish, tugma/matn tahrirlash).
 6. Faqat shundan keyin production tokeni bilan webhookni yangi kodga yo'naltiring:
    ```bash
-   curl "https://api.telegram.org/bot<PROD_TOKEN>/setWebhook?url=https://sizning-domeningiz/webhook.php&secret_token=<WEBHOOK_SECRET>"
+   curl "https://api.telegram.org/bot<PROD_TOKEN>/setWebhook?url=https://sizning-domeningiz/&secret_token=<WEBHOOK_SECRET>"
    ```
    Eski `bot.php` faylini **o'chirmang** — muammo chiqsa, webhookni eski manzilga qaytarib qo'yish orqali darhol orqaga qaytarish mumkin.
 
