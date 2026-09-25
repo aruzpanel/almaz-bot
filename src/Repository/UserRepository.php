@@ -135,6 +135,15 @@ final class UserRepository
         return array_map('intval', $this->db->query('SELECT id FROM users')->fetchAll(\PDO::FETCH_COLUMN));
     }
 
+    /** @return int[] up to $limit user ids greater than $afterId, ascending */
+    public function idsAfter(int $afterId, int $limit): array
+    {
+        $stmt = $this->db->prepare('SELECT id FROM users WHERE id > ? ORDER BY id LIMIT ?');
+        $stmt->execute([$afterId, $limit]);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
     /** @return array<int, array{id: int, first_name: ?string, referral_count: int}> */
     public function topReferrers(int $limit = 10): array
     {

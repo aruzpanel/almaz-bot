@@ -38,14 +38,17 @@ loadEnvFile(__DIR__ . '/.env');
 
 use Bot\Config;
 use Bot\Database;
+use Bot\Repository\BroadcastRepository;
 use Bot\Repository\ButtonRepository;
 use Bot\Repository\ChannelRepository;
 use Bot\Repository\PaymentMethodRepository;
+use Bot\Repository\ProcessedUpdateRepository;
 use Bot\Repository\SettingsRepository;
 use Bot\Repository\TemplateRepository;
 use Bot\Repository\UserRepository;
 use Bot\Repository\WithdrawalRepository;
 use Bot\Router;
+use Bot\Services\BroadcastSender;
 use Bot\Services\ReferralService;
 use Bot\Services\SubscriptionGate;
 use Bot\Support\Templates;
@@ -61,11 +64,20 @@ $paymentMethods = new PaymentMethodRepository($db);
 $templateRepo = new TemplateRepository($db);
 $buttonRepo = new ButtonRepository($db);
 $withdrawals = new WithdrawalRepository($db);
+$broadcasts = new BroadcastRepository($db);
+$processedUpdates = new ProcessedUpdateRepository($db);
 
-$telegram = new TelegramClient($config->botToken);
+$telegram = new TelegramClient($config->botToken, $config->telegramApiBase);
 $templates = new Templates($templateRepo);
 $gate = new SubscriptionGate($telegram, $channels, $users);
 $referrals = new ReferralService($users, $settings, $telegram, $templates);
+$broadcastSender = new BroadcastSender(
+    $telegram,
+    $broadcasts,
+    $users,
+    $config->adminId,
+    dirname($config->dbPath) . '/broadcast.lock',
+);
 
 if ($config->botUsername !== '') {
     $botUsername = $config->botUsername;
@@ -84,6 +96,7 @@ $router = new Router(
     $templateRepo,
     $buttonRepo,
     $withdrawals,
+    $broadcasts,
     $templates,
     $gate,
     $referrals,

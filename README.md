@@ -34,6 +34,20 @@ almaz-bot/
 2. Serverga `almaz-bot/` papkasini yuklang (PHP 8.1+, `pdo_sqlite` va `curl` kengaytmalari yoqilgan bo'lishi kerak).
 3. `data/` papkasiga yozish huquqi berilganini tekshiring.
 
+## Hammaga xabar yuborish (broadcast)
+
+Admin "Hammaga yuborish" qilganda xabar `broadcasts` jadvaliga navbatga qo'yiladi va webhook Telegram'ga darhol javob beradi. Yuborish javobdan keyin, o'sha PHP-FPM jarayonida (`fastcgi_finish_request`) soniyasiga 25 tadan parallel bajariladi (`src/Services/BroadcastSender.php`). Har partiyadan keyin qaysi foydalanuvchigacha yetib kelgani saqlanadi; tugagach admin hisobot oladi.
+
+Oldin barcha foydalanuvchilarga yuborish bitta webhook so'rovi ichida bo'lardi: Telegram ~60 soniyada "Read timeout" berib, xabarni qayta yuborardi va tarqatish qaytadan boshlanardi. Endi har bir `update_id` `processed_updates` jadvalida eslab qolinadi, qayta kelgan update tashlab yuboriladi.
+
+Uzilib qolgan tarqatishni (masalan PHP-FPM qayta ishga tushsa) davom ettirish uchun cron qo'shing (web foydalanuvchisi nomidan):
+
+```bash
+* * * * * php /var/www/bot.danatpay.uz/broadcast_worker.php
+```
+
+Telegram navbatida qolib ketgan update'larni tozalash (webhook va secret o'zgarmaydi): `ssh <server> 'bash -s' < ops/drop-pending-updates.sh`
+
 ## Eski ma'lumotlarni ko'chirish
 
 Agar productionda ishlab turgan eski botdan o'tkazayotgan bo'lsangiz:

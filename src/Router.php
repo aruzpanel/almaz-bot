@@ -14,6 +14,7 @@ use Bot\Handlers\AdminUsers;
 use Bot\Handlers\MainMenu;
 use Bot\Handlers\Onboarding;
 use Bot\Handlers\Withdrawal;
+use Bot\Repository\BroadcastRepository;
 use Bot\Repository\ButtonRepository;
 use Bot\Repository\ChannelRepository;
 use Bot\Repository\PaymentMethodRepository;
@@ -38,6 +39,7 @@ final class Router
         private readonly TemplateRepository $templateRepo,
         private readonly ButtonRepository $buttonRepo,
         private readonly WithdrawalRepository $withdrawals,
+        private readonly BroadcastRepository $broadcasts,
         private readonly Templates $templates,
         private readonly SubscriptionGate $gate,
         private readonly ReferralService $referrals,
@@ -71,6 +73,7 @@ final class Router
             templateRepo: $this->templateRepo,
             buttonRepo: $this->buttonRepo,
             withdrawals: $this->withdrawals,
+            broadcasts: $this->broadcasts,
             templates: $this->templates,
             gate: $this->gate,
             referrals: $this->referrals,

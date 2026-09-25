@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bot;
 
 use Bot\Entity\User;
+use Bot\Repository\BroadcastRepository;
 use Bot\Repository\ButtonRepository;
 use Bot\Repository\ChannelRepository;
 use Bot\Repository\PaymentMethodRepository;
@@ -31,6 +32,7 @@ final class Context
         public readonly TemplateRepository $templateRepo,
         public readonly ButtonRepository $buttonRepo,
         public readonly WithdrawalRepository $withdrawals,
+        public readonly BroadcastRepository $broadcasts,
         public readonly Templates $templates,
         public readonly SubscriptionGate $gate,
         public readonly ReferralService $referrals,

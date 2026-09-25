@@ -11,6 +11,7 @@ final class Config
     public readonly string $webhookSecret;
     public readonly string $dbPath;
     public readonly string $botUsername;
+    public readonly string $telegramApiBase;
     /** @var string[] */
     public readonly array $allowedPhonePrefixes;
 
@@ -21,6 +22,8 @@ final class Config
         $this->webhookSecret = self::env('WEBHOOK_SECRET', '');
         $this->dbPath = self::env('DB_PATH', __DIR__ . '/../data/bot.sqlite');
         $this->botUsername = self::env('BOT_USERNAME', '');
+        // Only for tests or a self-hosted Bot API server; production uses the default.
+        $this->telegramApiBase = rtrim(self::env('TELEGRAM_API_BASE', 'https://api.telegram.org'), '/');
         $this->allowedPhonePrefixes = array_values(array_filter(array_map(
             'trim',
             explode(',', self::env('ALLOWED_PHONE_PREFIXES', '998,996'))

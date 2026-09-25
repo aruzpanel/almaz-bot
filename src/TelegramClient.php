@@ -6,13 +6,16 @@ namespace Bot;
 
 final class TelegramClient
 {
-    public function __construct(private readonly string $token)
+    public function __construct(
+        private readonly string $token,
+        private readonly string $apiBase = 'https://api.telegram.org',
+    )
     {
     }
 
     public function call(string $method, array $params = []): ?\stdClass
     {
-        $ch = curl_init("https://api.telegram.org/bot{$this->token}/{$method}");
+        $ch = curl_init("{$this->apiBase}/bot{$this->token}/{$method}");
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -54,7 +57,7 @@ final class TelegramClient
         $handles = [];
 
         foreach ($requests as $key => $request) {
-            $ch = curl_init("https://api.telegram.org/bot{$this->token}/{$request['method']}");
+            $ch = curl_init("{$this->apiBase}/bot{$this->token}/{$request['method']}");
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST => true,
