@@ -88,11 +88,15 @@ final class AdminBroadcast
             return;
         }
 
-        foreach ($ctx->users->allIds() as $id) {
-            $ctx->telegram->sendMessage($id, $text, ['disable_web_page_preview' => true]);
-        }
+        // Sent by BroadcastSender after the webhook has answered, not here:
+        // looping over every user inside the request made Telegram time out and retry.
+        $ctx->broadcasts->enqueueText($text);
 
-        $ctx->telegram->sendMessage($ctx->config->adminId, '<b>Hammaga yuborildi ✅</b>', [
+        $ctx->telegram->sendMessage($ctx->config->adminId, sprintf(
+            "<b>⏳ Xabar navbatga qo'yildi.</b>
+%d ta foydalanuvchiga yuborilmoqda — tugagach xabar beraman.",
+            $ctx->users->count()
+        ), [
             'reply_markup' => Menus::panel($ctx->labels),
         ]);
         $ctx->setState(null);
@@ -115,11 +119,13 @@ final class AdminBroadcast
             return;
         }
 
-        foreach ($ctx->users->allIds() as $id) {
-            $ctx->telegram->forwardMessage($id, $ctx->config->adminId, $ctx->update->messageId);
-        }
+        $ctx->broadcasts->enqueueForward($ctx->config->adminId, (int) $ctx->update->messageId);
 
-        $ctx->telegram->sendMessage($ctx->config->adminId, '<b>Hammaga yuborildi ✅</b>', [
+        $ctx->telegram->sendMessage($ctx->config->adminId, sprintf(
+            "<b>⏳ Xabar navbatga qo'yildi.</b>
+%d ta foydalanuvchiga yuborilmoqda — tugagach xabar beraman.",
+            $ctx->users->count()
+        ), [
             'reply_markup' => Menus::panel($ctx->labels),
         ]);
         $ctx->setState(null);
