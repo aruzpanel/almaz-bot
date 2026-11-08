@@ -1,98 +1,108 @@
-# Almaz-bot (zamonaviylashtirilgan versiya)
+# Almaz-bot
 
-Bu — `Downloads\bot.php` faylining PHP 8 + SQLite (PDO) asosidagi, OOP tuzilishga ega qayta yozilgan versiyasi. Asl bot fayl-asosli saqlashdan (`pul/`, `odam/`, `ban/`, `step/`, `admin/*.txt`, ...) foydalangan; bu versiya bitta `data/bot.sqlite` bazasidan foydalanadi.
+A Telegram referral bot written in plain PHP 8 with SQLite. Users invite friends, earn a balance for each referral, and ask for a payout to their in-game ID. An admin approves each payout from inside Telegram. Everything else is also managed from Telegram: settings, required channels, payment methods, texts, buttons and broadcasts.
 
-> **Eslatma:** kod PDO orqali yozilgan, shuning uchun boshqa bazaga (masalan MySQL) o'tish printsipial jihatdan oson, lekin `schema.sql` va repository'lardagi bir nechta SQLite-ga xos ibora (`INSERT OR IGNORE`, `ON CONFLICT ... DO UPDATE`, `PRAGMA`) MySQL uchun mos ravishda o'zgartirilishi kerak bo'ladi (`INSERT IGNORE`, `ON DUPLICATE KEY UPDATE`). Hozircha standart va tavsiya etilgan variant — SQLite.
+It is a full rewrite of a common single-file Telegram bot template. The template kept data in hundreds of small text files and handled everything in about 250 `if` blocks. This version has a router, one handler class per section, a real database and a Telegram Mini App. It needs no framework and no Composer packages.
 
-## Tuzilma
+O'zbekcha: [README.uz.md](README.uz.md)
 
-```
-almaz-bot/
-  public/index.php         Telegram shu yerga POST qiladi (veb-ildiz = public/)
-  migrate_from_legacy.php  eski fayllardan bazaga bir martalik import
-  bootstrap.php            konfiguratsiya + bog'lovchi (DI) qurilmasi
-  schema.sql                baza sxemasi
-  .env.example              nusxalab .env qiling va to'ldiring
-  src/
-    Config.php, Database.php, TelegramClient.php, Update.php, Context.php, Router.php, Defaults.php
-    Entity/User.php
-    Repository/            har bir jadval uchun CRUD klasslar
-    Services/               SubscriptionGate (majburiy obuna), ReferralService (referral bonusi)
-    Support/                Keyboards, Templates, Labels, Menus
-    Handlers/               har bir bo'lim uchun alohida klass (Onboarding, MainMenu, Withdrawal,
-                             AdminPanel, AdminSettings, AdminChannels, AdminPaymentMethods,
-                             AdminUsers, AdminBroadcast, AdminContentEditor)
-```
+## Features
 
-## O'rnatish
+- **Onboarding:** phone number check, limited to allowed country codes. Users must join the required channels before they can use the bot.
+- **Referrals:** each user gets an invite link and earns a configurable bonus for every new user who joins through it.
+- **Payouts:** the user picks a payment method, then enters their game ID and the amount. The admin approves or rejects the request with one button. Every request is stored in `withdrawals` as an audit trail.
+- **Admin panel in Telegram:** settings (bonus, currency, minimum payout), required channels, payment methods, statistics, ban/unban and balance edits, and editing every message text and button label.
+- **Broadcasts:** sends to all users in the background at about 25 messages per second. The webhook replies to Telegram at once, so Telegram does not time out and resend. Interrupted broadcasts resume from where they stopped.
+- **Duplicate update guard:** each `update_id` is stored, so Telegram retries are ignored.
+- **Mini App** (`public/app/`): Cabinet, Invite and Withdraw tabs. Requests are checked against Telegram `initData` using HMAC.
+- **Security:** the token and admin ID live in `.env`, never in the code. Webhook requests are verified with `X-Telegram-Bot-Api-Secret-Token`. User text is HTML-escaped and balance changes are atomic SQL updates.
 
-1. `.env.example` faylini `.env` deb nusxalang va to'ldiring:
-   - `BOT_TOKEN` — BotFather bergan token
-   - `ADMIN_ID` — asosiy admin Telegram ID
-   - `WEBHOOK_SECRET` — o'zingiz o'ylab topgan uzun tasodifiy satr (Telegram webhook so'rovlarini tasdiqlash uchun)
-   - `DB_PATH` — SQLite fayli joylashuvi (standart: `data/bot.sqlite`)
-2. Serverga `almaz-bot/` papkasini yuklang (PHP 8.1+, `pdo_sqlite` va `curl` kengaytmalari yoqilgan bo'lishi kerak).
-3. `data/` papkasiga yozish huquqi berilganini tekshiring.
+## Requirements
 
-## Hammaga xabar yuborish (broadcast)
+- PHP 8.1+ with `pdo_sqlite` and `curl`
+- A web server with HTTPS pointing at `public/` (PHP-FPM is recommended: broadcasts use `fastcgi_finish_request`)
+- A bot token from [@BotFather](https://t.me/BotFather)
 
-Admin "Hammaga yuborish" qilganda xabar `broadcasts` jadvaliga navbatga qo'yiladi va webhook Telegram'ga darhol javob beradi. Yuborish javobdan keyin, o'sha PHP-FPM jarayonida (`fastcgi_finish_request`) soniyasiga 25 tadan parallel bajariladi (`src/Services/BroadcastSender.php`). Har partiyadan keyin qaysi foydalanuvchigacha yetib kelgani saqlanadi; tugagach admin hisobot oladi.
-
-Oldin barcha foydalanuvchilarga yuborish bitta webhook so'rovi ichida bo'lardi: Telegram ~60 soniyada "Read timeout" berib, xabarni qayta yuborardi va tarqatish qaytadan boshlanardi. Endi har bir `update_id` `processed_updates` jadvalida eslab qolinadi, qayta kelgan update tashlab yuboriladi.
-
-Uzilib qolgan tarqatishni (masalan PHP-FPM qayta ishga tushsa) davom ettirish uchun cron qo'shing (web foydalanuvchisi nomidan):
+## Setup
 
 ```bash
-* * * * * php /var/www/bot.danatpay.uz/broadcast_worker.php
+git clone https://github.com/aruzpanel/almaz-bot.git
+cd almaz-bot
+cp .env.example .env      # then fill it in, see below
+mkdir -p data             # must be writable by the web server user
 ```
 
-Telegram navbatida qolib ketgan update'larni tozalash (webhook va secret o'zgarmaydi): `ssh <server> 'bash -s' < ops/drop-pending-updates.sh`
+The database schema (`schema.sql`) is applied automatically on first run.
 
-## Eski ma'lumotlarni ko'chirish
+Point the bot's webhook at your server. Use the same secret as `WEBHOOK_SECRET`:
 
-Agar productionda ishlab turgan eski botdan o'tkazayotgan bo'lsangiz:
+```bash
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-domain/&secret_token=<WEBHOOK_SECRET>"
+```
+
+Optional cron job that resumes interrupted broadcasts (run as the web server user):
+
+```cron
+* * * * * php /path/to/almaz-bot/broadcast_worker.php
+```
+
+## Configuration
+
+| Variable | Required | Description |
+|---|---|---|
+| `BOT_TOKEN` | yes | Token from @BotFather |
+| `ADMIN_ID` | yes | Telegram user ID of the main admin |
+| `WEBHOOK_SECRET` | recommended | Long random string, must match `secret_token` in `setWebhook` |
+| `BOT_USERNAME` | yes | Bot username without `@`, used in referral links |
+| `DB_PATH` | no | SQLite file, default `data/bot.sqlite` |
+| `ALLOWED_PHONE_PREFIXES` | no | Comma-separated country codes, default `998,996` |
+| `TELEGRAM_API_BASE` | no | Only for tests or a self-hosted Bot API server |
+
+Bonus amounts, currency name, channels, payment methods, texts and buttons are set from the admin panel, not in `.env`.
+
+**Before running your own copy:** a few links still point at the original deployment. These are the support account, the shop button and the Mini App URL in `src/Handlers/MainMenu.php`, and the default "manual" text in `src/Defaults.php`. Change them to your own.
+
+## Local testing
+
+Use a separate test bot, never your production token.
+
+```bash
+find src public -name "*.php" -exec php -l {} \;   # syntax check
+php -S localhost:8000 -t public
+ngrok http 8000                                     # or any tunnel, then setWebhook to it
+```
+
+Then try `/start`, an invite link (`/start <user-id>`), sharing a phone number, the channel check, the cabinet, a full payout request, and every admin section.
+
+## Migrating from the old file-based bot
 
 ```bash
 php migrate_from_legacy.php /path/to/old-bot-folder
 ```
 
-Bu skript eski `pul/`, `odam/`, `ban/`, `number/`, `admin/*.txt`, `admin/kanal.txt`, `number/turi.txt`, `matn/*.txt`, `tugma/*.txt`, `azo.dat` fayllarini o'qib yangi bazaga yozadi (adminning matn/tugma bo'yicha kiritgan o'zgarishlari ham saqlanadi). Qayta ishga tushirish xavfsiz.
+This imports balances, users, bans, settings, channels, and edited texts and buttons from the old `pul/`, `odam/`, `ban/`, `admin/*.txt` files. It is safe to run more than once.
 
-## Tekshirish (bu muhitda PHP bo'lmagani uchun o'zingiz bajarishingiz kerak)
+## Project layout
 
-1. Sintaksis tekshiruvi: `php -l public/index.php` va har bir `src/**/*.php` fayl uchun (yoki `find src -name "*.php" -exec php -l {} \;`).
-2. **Yangi, alohida test bot** yarating (@BotFather → `/newbot`), production tokenidan foydalanmang.
-3. Lokal serverni ko'taring: `php -S localhost:8000 -t public`.
-4. `ngrok http 8000` (yoki shunga o'xshash) orqali tashqi manzil oling va test botingizga shu manzilni webhook qilib bering:
-   ```bash
-   curl "https://api.telegram.org/bot<TEST_TOKEN>/setWebhook?url=https://<ngrok-manzil>/&secret_token=<.env dagi WEBHOOK_SECRET>"
-   ```
-5. Test botida qo'lda tekshiring: `/start`, referral havolasi (`/start <biror-id>`), telefon yuborish, majburiy obuna gate, "Almaz ishlash", kabinet, pul yechish so'rovi (usul tanlash → FF ID → miqdor → tasdiqlash → admin ko'rib chiqishi), va admin panelning barcha bo'limlari (sozlamalar, kanallar, to'lov usullari, xabarnoma, foydalanuvchi boshqarish, tugma/matn tahrirlash).
-6. Faqat shundan keyin production tokeni bilan webhookni yangi kodga yo'naltiring:
-   ```bash
-   curl "https://api.telegram.org/bot<PROD_TOKEN>/setWebhook?url=https://sizning-domeningiz/&secret_token=<WEBHOOK_SECRET>"
-   ```
-   Eski `bot.php` faylini **o'chirmang** — muammo chiqsa, webhookni eski manzilga qaytarib qo'yish orqali darhol orqaga qaytarish mumkin.
+```
+public/index.php         webhook entry point (web root = public/)
+public/app/              Telegram Mini App and its JSON API
+bootstrap.php            config, autoloader and wiring
+schema.sql               database schema
+broadcast_worker.php     cron safety net for broadcasts
+migrate_from_legacy.php  one-time import from the old bot
+src/
+  Router.php             maps buttons and user state to handlers
+  Handlers/              one class per menu section (user and admin)
+  Repository/            one class per table
+  Services/              subscription gate, referrals, broadcast sender
+  Support/               keyboards, texts, labels, menus
+```
 
-## Asl koddan farqlar
+## Contributing
 
-**Xavfsizlik/tuzatishlar:**
-- Bot tokeni va admin ID endi `.env`da, kodda emas.
-- Webhookka `X-Telegram-Bot-Api-Secret-Token` tekshiruvi qo'shildi.
-- Foydalanuvchi yozgan erkin matn (murojaat, username) HTML xabarlarga qo'yishdan oldin escape qilinadi.
-- Balansni o'zgartirish endi atomik SQL orqali (fayllarni o'qib-yozish o'rniga).
-- Telegram API chaqiruvlarida timeout va xatolarni `error_log`ga yozish qo'shildi.
-- Ruxsat etilgan telefon kodlari (998, 996) `.env`ga chiqarildi.
-- Referral tizimidagi ikkita nozik xato tabiiy ravishda tuzatildi: (1) hech qanday referali bo'lmagan foydalanuvchiga tasodifiy bonus berilish xavfi (eski kodda `file_get_contents` fayl topilmaganda `false` qaytarishiga asoslangan solishtirish xatosi bor edi), (2) referral havolasi orqali qaytadan kirgan oddiy (admin bo'lmagan) foydalanuvchiga noto'g'ri admin-klaviaturasi ko'rsatilishi.
-- "◀️ Orqaga" tugmasi eski kodda ikki marta (ikkita mos keluvchi blok orqali) ishlov berilib, ketma-ket ikkita bir xil xabar yuborar edi — endi bitta, aniq handler.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: see [SECURITY.md](SECURITY.md).
 
-**Olib tashlangan (kelishilganidek):**
-- Hech qaysi menyuda ko'rinmagan va aniqlanmagan `$adxambek` o'zgaruvchisiga murojaat qilib xato beradigan "📋 Vazifalar" (Instagram vazifalari) bo'limi va uning `on=`/`off=` tasdiqlash callback'lari.
-- Hech qaysi menyuda ko'rinmagan "🔒" va soxta progress-bar "⚒️Botni Yangilash" bo'limlari.
+## License
 
-**O'zgartirilgan:**
-- "⚙️PULLI NASTROYKA⚙️" tugmasi endi `@Es_madara01`ga ulanadi (avval shablon sotuvchisining `@ZufarMaxOrg` havolasi edi).
-
-**Ichki (foydalanuvchiga ko'rinmaydigan) yaxshilanish:**
-- Pul yechish so'rovlari endi `withdrawals` jadvalida to'liq audit-iz bilan saqlanadi (eski versiyada bu ma'lumot faqat vaqtinchalik callback tugmalari ichida yashardi, hech qayerda yozilmasdi).
-- Admin tasdiqlash tugmalari endi `wallet`/`FF ID`/`miqdor` qiymatlarini chiziqcha (`-`) bilan callback_data ichiga joylashtirish o'rniga bazadagi so'rov ID'siga ishora qiladi — usul nomida chiziqcha bo'lsa ham noto'g'ri parslanish xavfi yo'q.
+[MIT](LICENSE)
